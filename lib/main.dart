@@ -49,11 +49,12 @@ class _HomePageState extends State<HomePage> {
     Directory appDirectory = await getApplicationDocumentsDirectory();
     Directory setDirectory = Directory('${appDirectory.path}/sets');
     setDirectory.createSync();
-    var sampleSet = File('${setDirectory.path}/sample_set.json');
+    File sampleSet = File('${setDirectory.path}/sample_set.json');
     sampleSet.writeAsStringSync('''
 {
+ "version": "0.0",
  "name": "Sample Set",
- "active": true,
+ "enabled": true,
  "cards": [
    { "term": "a", "definition": "1"},
    { "term": "b", "definition": "2"},
@@ -63,7 +64,12 @@ class _HomePageState extends State<HomePage> {
     ''');
     for (FileSystemEntity file in setDirectory.listSync()) {
       if (file is! File) continue;
-      sets.add(CardSet(file));
+      CardSet? set = CardSet.fromFile(file);
+      if (set == null) {
+        print('Failed to parse file $file');
+      } else {
+        sets.add(set);
+      }
     }
     setState(() {});
   }
@@ -116,7 +122,7 @@ class _CardSetWidgetState extends State<CardSetWidget> {
   @override
   void initState() {
     super.initState();
-    _isActive = widget.set.isActive;
+    _isActive = widget.set.enabled;
   }
 
   @override

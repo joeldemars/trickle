@@ -2,35 +2,57 @@ import 'dart:io';
 import 'dart:convert';
 
 class CardSet {
-  CardSet(this.file) : setData = jsonDecode(file.readAsStringSync());
+  CardSet(this.version, this.name, this.enabled, this.cards);
 
-  File file;
-  dynamic setData;
-
-  List<Card> get cards {
-    List<Card> cards = [];
-    for (final card in setData['cards']) {
-      cards.add(Card.fromObject(card));
+  static CardSet? fromFile(File file) {
+    dynamic data;
+    try {
+      data = jsonDecode(file.readAsStringSync());
+    } catch (e) {
+      return null;
     }
-    return cards;
+
+    String? version;
+    String? name;
+    bool? enabled;
+    List<Card> cards = [];
+
+    version = data['version'];
+    switch (version) {
+      case '0.0':
+        name = data['name'];
+        enabled = data['enabled'];
+        if (name == null || enabled == null) {
+          return null;
+        }
+        if (data['cards'] != null) {
+          for (dynamic card in data['cards']) {
+            String? term = card['term'];
+            String? definition = card['definition'];
+            if (term == null || definition == null) {
+              return null;
+            } else {
+              cards.add(Card(term, definition));
+            }
+          }
+        }
+        return CardSet(version!, name, enabled, cards);
+
+      case null:
+      default:
+        return null;
+    }
   }
 
-  bool get isActive => setData['active'];
-  String get name => setData['name'];
+  String version = '0.0'; // Version of the JSON format (major.minor)
+  String name = '';
+  bool enabled = false;
+  List<Card> cards = [];
 }
 
 class Card {
   Card(this.term, this.definition);
-  Card.fromObject(dynamic object) {
-    term = object['term'];
-    definition = object['definition'];
-  }
-  Card.fromJson(String json) {
-    final data = jsonDecode(json);
-    term = data['term'];
-    definition = data['defintion'];
-  }
 
-  String term = '';
-  String definition = '';
+  String term;
+  String definition;
 }
