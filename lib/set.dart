@@ -2,7 +2,11 @@ import 'dart:io';
 import 'dart:convert';
 
 class CardSet {
-  CardSet(this.version, this.name, this.enabled, this.cards);
+  CardSet(this.file, this.version, this.name, this.enabled, this.cards);
+
+  CardSet.from(CardSet set)
+      : this(set.file, set.version, set.name, set.enabled,
+            List<FlashCard>.from(set.cards));
 
   static CardSet? fromFile(File file) {
     dynamic data;
@@ -15,7 +19,7 @@ class CardSet {
     String? version;
     String? name;
     bool? enabled;
-    List<Card> cards = [];
+    List<FlashCard> cards = [];
 
     version = data['version'];
     switch (version) {
@@ -32,11 +36,11 @@ class CardSet {
             if (term == null || definition == null) {
               return null;
             } else {
-              cards.add(Card(term, definition));
+              cards.add(FlashCard(term, definition));
             }
           }
         }
-        return CardSet(version!, name, enabled, cards);
+        return CardSet(file, version!, name, enabled, cards);
 
       case null:
       default:
@@ -44,14 +48,26 @@ class CardSet {
     }
   }
 
+  String toJson() {
+    return jsonEncode({
+      'version': version,
+      'name': name,
+      'enabled': enabled,
+      'cards': cards
+          .map((card) => {'term': card.term, 'definition': card.definition})
+          .toList()
+    });
+  }
+
+  File? file;
   String version = '0.0'; // Version of the JSON format (major.minor)
   String name = '';
   bool enabled = false;
-  List<Card> cards = [];
+  List<FlashCard> cards = [];
 }
 
-class Card {
-  Card(this.term, this.definition);
+class FlashCard {
+  FlashCard(this.term, this.definition);
 
   String term;
   String definition;

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'set.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -34,6 +36,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  List<File> files = [];
   List<CardSet> sets = [];
   FlutterLocalNotificationsPlugin notifier = FlutterLocalNotificationsPlugin();
 
@@ -47,30 +50,34 @@ class _HomePageState extends State<HomePage> {
 
   void _initializeFiles() async {
     Directory appDirectory = await getApplicationDocumentsDirectory();
-    Directory setDirectory = Directory('${appDirectory.path}/sets');
-    setDirectory.createSync();
-    File sampleSet = File('${setDirectory.path}/sample_set.json');
-    sampleSet.writeAsStringSync('''
-{
- "version": "0.0",
- "name": "Sample Set",
- "enabled": true,
- "cards": [
-   { "term": "a", "definition": "1"},
-   { "term": "b", "definition": "2"},
-   { "term": "c", "definition": "3"}
- ] 
-}
-    ''');
-    for (FileSystemEntity file in setDirectory.listSync()) {
-      if (file is! File) continue;
-      CardSet? set = CardSet.fromFile(file);
-      if (set == null) {
-        print('Failed to parse file $file');
-      } else {
-        sets.add(set);
-      }
-    }
+    Directory setDirectory = Directory('${appDirectory.path}/sets')
+      ..createSync();
+//     File sampleSet = File('${setDirectory.path}/sample_set.json');
+//     sampleSet.writeAsStringSync('''
+// {
+//  "version": "0.0",
+//  "name": "Sample Set",
+//  "enabled": true,
+//  "cards": [
+//    { "term": "a", "definition": "1"},
+//    { "term": "b", "definition": "2"},
+//    { "term": "c", "definition": "3"}
+//  ]
+// }
+//     ''');
+    // for (FileSystemEntity file in setDirectory.listSync()) {
+    //   if (file is! File) continue;
+    //   CardSet? set = CardSet.fromFile(file);
+    //   if (set == null) {
+    //     print('Failed to parse file $file');
+    //   } else {
+    //     sets.add(set);
+    //   }
+    // }
+    files = setDirectory.listSync().whereType<File>().toList();
+    // TODO: Implement resilient handling of unparsable files
+    sets = files.map((file) => CardSet.fromFile(file)!).toList();
+
     setState(() {});
   }
 
@@ -81,23 +88,21 @@ class _HomePageState extends State<HomePage> {
         'Content',
         const NotificationDetails(
             android: AndroidNotificationDetails('channel', 'Channel')));
-    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    List<CardSetWidget> setWidgets = [];
-    for (CardSet set in sets) {
-      setWidgets.add(CardSetWidget(set));
-    }
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
       body: Center(
-        child: ListView(children: setWidgets),
-      ),
+          child: ListView.builder(
+        itemCount: sets.length,
+        itemBuilder: (context, index) =>
+            CardSetWidget(files[index], sets[index]),
+      )),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
         tooltip: 'Increment',
@@ -108,21 +113,22 @@ class _HomePageState extends State<HomePage> {
 }
 
 class CardSetWidget extends StatefulWidget {
-  CardSetWidget(this.set, {super.key});
+  const CardSetWidget(this.file, this.set, {super.key});
 
-  CardSet set;
+  final File file;
+  final CardSet set;
 
   @override
   State<CardSetWidget> createState() => _CardSetWidgetState();
 }
 
 class _CardSetWidgetState extends State<CardSetWidget> {
-  late bool _isActive;
+  late bool _enabled;
 
   @override
   void initState() {
     super.initState();
-    _isActive = widget.set.enabled;
+    _enabled = widget.set.enabled;
   }
 
   @override
@@ -131,35 +137,67 @@ class _CardSetWidgetState extends State<CardSetWidget> {
         title: Text('${widget.set.name}'),
         subtitle: Text('${widget.set.cards.length} cards'),
         trailing: Switch(
-          value: _isActive,
+          value: _enabled,
           onChanged: (value) {
             setState(() {
-              _isActive = value;
+              _enabled = value;
             });
+            CardSet newSet = CardSet.from(widget.set);
+            newSet.enabled = _enabled;
+            widget.file.writeAsStringSync(newSet.toJson());
           },
         ),
         onTap: () {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (context) => SetEditor(widget.set)));
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => SetEditor(widget.file, widget.set)));
         });
   }
 }
 
 class SetEditor extends StatefulWidget {
-  SetEditor(this.set, {super.key});
+  const SetEditor(this.file, this.set, {super.key});
 
-  CardSet set;
+  final File file;
+  final CardSet set;
+
   @override
   State<SetEditor> createState() => _SetEditorState();
 }
 
 class _SetEditorState extends State<SetEditor> {
-  _SetEditorState() {}
+  @override
+  void initState() {
+    super.initState();
+    edited = CardSet.from(widget.set);
+  }
+
+  late CardSet edited;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(title: const Text('Edit set')),
-        body: ListView(children: []));
+        body: Column(children: [
+          TextField(
+            controller: TextEditingController(text: widget.set.name),
+          ),
+          Expanded(
+              child: ListView.builder(
+                  itemCount: widget.set.cards.length,
+                  itemBuilder: (context, index) => Card(
+                        child: Column(children: [
+                          TextField(
+                            controller: TextEditingController(
+                                text: widget.set.cards[index].term),
+                          ),
+                          TextField(
+                            controller: TextEditingController(
+                                text: widget.set.cards[index].definition),
+                          ),
+                        ]),
+                      )))
+        ]));
   }
 }
