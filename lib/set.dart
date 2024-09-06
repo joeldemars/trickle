@@ -59,7 +59,11 @@ class CardSet {
     });
   }
 
-  File? file;
+  void save() {
+    file.writeAsStringSync(toJson());
+  }
+
+  File file;
   String version = '0.0'; // Version of the JSON format (major.minor)
   String name = '';
   bool enabled = false;

@@ -113,6 +113,8 @@ class _HomePageState extends State<HomePage> {
 }
 
 class CardSetWidget extends StatefulWidget {
+  // TODO: refactor this to hold the set variable
+  // Updates to the set aren't reflected when it is edited
   const CardSetWidget(this.file, this.set, {super.key});
 
   final File file;
@@ -124,18 +126,22 @@ class CardSetWidget extends StatefulWidget {
 
 class _CardSetWidgetState extends State<CardSetWidget> {
   late bool _enabled;
+  late String _name;
+  late int _count;
 
   @override
   void initState() {
     super.initState();
     _enabled = widget.set.enabled;
+    _name = widget.set.name;
+    _count = widget.set.cards.length;
   }
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-        title: Text('${widget.set.name}'),
-        subtitle: Text('${widget.set.cards.length} cards'),
+        title: Text(_name),
+        subtitle: Text('$_count cards'),
         trailing: Switch(
           value: _enabled,
           onChanged: (value) {
@@ -149,9 +155,15 @@ class _CardSetWidgetState extends State<CardSetWidget> {
         ),
         onTap: () {
           Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => SetEditor(widget.file, widget.set)));
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => SetEditor(widget.file, widget.set)))
+              .then((value) {
+            setState(() {
+              _name = widget.set.name;
+              _count = widget.set.cards.length;
+            });
+          });
         });
   }
 }
@@ -171,6 +183,8 @@ class _SetEditorState extends State<SetEditor> {
   void initState() {
     super.initState();
     edited = CardSet.from(widget.set);
+    // Change JSON format when updated
+    // edited.version = '0.0';
   }
 
   late CardSet edited;
@@ -178,26 +192,58 @@ class _SetEditorState extends State<SetEditor> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text('Edit set')),
-        body: Column(children: [
-          TextField(
-            controller: TextEditingController(text: widget.set.name),
-          ),
-          Expanded(
-              child: ListView.builder(
-                  itemCount: widget.set.cards.length,
-                  itemBuilder: (context, index) => Card(
+      appBar: AppBar(title: const Text('Edit set'), actions: [
+        TextButton(
+          child: const Text('Save'),
+          onPressed: () {
+            widget.file.writeAsStringSync(edited.toJson());
+          },
+        )
+      ]),
+      body: Column(children: [
+        TextField(
+          controller: TextEditingController(text: edited.name),
+        ),
+        Expanded(
+            child: ListView.builder(
+                itemCount: edited.cards.length,
+                itemBuilder: (context, index) => Card(
+                        child: Row(children: [
+                      Expanded(
                         child: Column(children: [
                           TextField(
                             controller: TextEditingController(
-                                text: widget.set.cards[index].term),
+                                text: edited.cards[index].term),
+                            onChanged: (text) {
+                              edited.cards[index].term = text;
+                            },
                           ),
                           TextField(
                             controller: TextEditingController(
-                                text: widget.set.cards[index].definition),
+                                text: edited.cards[index].definition),
+                            onChanged: (text) {
+                              edited.cards[index].definition = text;
+                            },
                           ),
                         ]),
-                      )))
-        ]));
+                      ),
+                      IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            setState(() {
+                              edited.cards.removeAt(index);
+                            });
+                          })
+                    ]))))
+      ]),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            edited.cards.add(FlashCard('', ''));
+          });
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
   }
 }
