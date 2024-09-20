@@ -1,8 +1,7 @@
-import 'dart:convert';
-
 import 'set.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -39,6 +38,8 @@ class _HomePageState extends State<HomePage> {
   List<File> files = [];
   List<CardSet> sets = [];
   FlutterLocalNotificationsPlugin notifier = FlutterLocalNotificationsPlugin();
+  Uuid uuid = Uuid();
+  Directory? setDirectory;
 
   @override
   void initState() {
@@ -50,8 +51,7 @@ class _HomePageState extends State<HomePage> {
 
   void _initializeFiles() async {
     Directory appDirectory = await getApplicationDocumentsDirectory();
-    Directory setDirectory = Directory('${appDirectory.path}/sets')
-      ..createSync();
+    setDirectory = Directory('${appDirectory.path}/sets')..createSync();
 //     File sampleSet = File('${setDirectory.path}/sample_set.json');
 //     sampleSet.writeAsStringSync('''
 // {
@@ -74,7 +74,7 @@ class _HomePageState extends State<HomePage> {
     //     sets.add(set);
     //   }
     // }
-    files = setDirectory.listSync().whereType<File>().toList();
+    files = setDirectory!.listSync().whereType<File>().toList();
     // TODO: Implement resilient handling of unparsable files
     // sets = files.map((file) => CardSet.fromFile(file)!).toList();
 
@@ -103,7 +103,20 @@ class _HomePageState extends State<HomePage> {
         itemBuilder: (context, index) => CardSetWidget(files[index]),
       )),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
+        onPressed: () {
+          if (setDirectory == null) return;
+          File newFile = File('${setDirectory!.path}/${uuid.v7()}.json');
+          Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => SetEditor(
+                          newFile, CardSet(newFile, '0.0', '', false, []))))
+              .then((value) {
+            setState(() {
+              files = setDirectory!.listSync().whereType<File>().toList();
+            });
+          });
+        },
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ),
