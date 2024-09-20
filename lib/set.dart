@@ -8,6 +8,12 @@ class CardSet {
       : this(set.file, set.version, set.name, set.enabled,
             List<FlashCard>.from(set.cards));
 
+  File file;
+  String version = '0.0'; // Version of the JSON format (major.minor)
+  String name = '';
+  bool enabled = false;
+  List<FlashCard> cards = [];
+
   static CardSet? fromFile(File file) {
     dynamic data;
     try {
@@ -62,12 +68,6 @@ class CardSet {
   void save() {
     file.writeAsStringSync(toJson());
   }
-
-  File file;
-  String version = '0.0'; // Version of the JSON format (major.minor)
-  String name = '';
-  bool enabled = false;
-  List<FlashCard> cards = [];
 }
 
 class FlashCard {

@@ -76,7 +76,7 @@ class _HomePageState extends State<HomePage> {
     // }
     files = setDirectory.listSync().whereType<File>().toList();
     // TODO: Implement resilient handling of unparsable files
-    sets = files.map((file) => CardSet.fromFile(file)!).toList();
+    // sets = files.map((file) => CardSet.fromFile(file)!).toList();
 
     setState(() {});
   }
@@ -99,9 +99,8 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Center(
           child: ListView.builder(
-        itemCount: sets.length,
-        itemBuilder: (context, index) =>
-            CardSetWidget(files[index], sets[index]),
+        itemCount: files.length,
+        itemBuilder: (context, index) => CardSetWidget(files[index]),
       )),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
@@ -113,56 +112,45 @@ class _HomePageState extends State<HomePage> {
 }
 
 class CardSetWidget extends StatefulWidget {
-  // TODO: refactor this to hold the set variable
-  // Updates to the set aren't reflected when it is edited
-  const CardSetWidget(this.file, this.set, {super.key});
+  const CardSetWidget(this.file, {super.key});
 
   final File file;
-  final CardSet set;
 
   @override
   State<CardSetWidget> createState() => _CardSetWidgetState();
 }
 
 class _CardSetWidgetState extends State<CardSetWidget> {
-  late bool _enabled;
-  late String _name;
-  late int _count;
+  late CardSet set;
 
   @override
   void initState() {
     super.initState();
-    _enabled = widget.set.enabled;
-    _name = widget.set.name;
-    _count = widget.set.cards.length;
+    // TODO: Implement resilient parsing
+    set = CardSet.fromFile(widget.file)!;
   }
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-        title: Text(_name),
-        subtitle: Text('$_count cards'),
+        title: Text(set.name),
+        subtitle: Text('${set.cards.length} cards'),
         trailing: Switch(
-          value: _enabled,
+          value: set.enabled,
           onChanged: (value) {
             setState(() {
-              _enabled = value;
+              set.enabled = value;
             });
-            CardSet newSet = CardSet.from(widget.set);
-            newSet.enabled = _enabled;
-            widget.file.writeAsStringSync(newSet.toJson());
+            widget.file.writeAsStringSync(set.toJson());
           },
         ),
         onTap: () {
           Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => SetEditor(widget.file, widget.set)))
+                      builder: (context) => SetEditor(widget.file, set)))
               .then((value) {
-            setState(() {
-              _name = widget.set.name;
-              _count = widget.set.cards.length;
-            });
+            setState(() {});
           });
         });
   }
@@ -197,13 +185,20 @@ class _SetEditorState extends State<SetEditor> {
           child: const Text('Save'),
           onPressed: () {
             widget.file.writeAsStringSync(edited.toJson());
+            // There's probably a more elegant way to do this.
+            // Maybe by returning a CardSet object when the route is popped?
+            widget.set.version = edited.version;
+            widget.set.name = edited.name;
+            widget.set.cards = edited.cards;
           },
         )
       ]),
       body: Column(children: [
         TextField(
-          controller: TextEditingController(text: edited.name),
-        ),
+            controller: TextEditingController(text: edited.name),
+            onChanged: (text) {
+              edited.name = text;
+            }),
         Expanded(
             child: ListView.builder(
                 itemCount: edited.cards.length,
