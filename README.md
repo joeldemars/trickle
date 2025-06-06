@@ -2,6 +2,8 @@
 
 A new Flutter project.
 
+NOTE: This was basically intended to have the same functionality as Anki, and was subsequently abandoned when I found out about Anki.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
